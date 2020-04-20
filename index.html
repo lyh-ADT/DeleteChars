@@ -6,6 +6,8 @@
     <title>Document</title>
 </head>
 <body>
+    font-style:<input id="font-style" type="text" value="50px sans-serif">
+    <br/>
     <textarea id="content">fuc^^ine : )</textarea>
     <button onclick="start();">开始</button>
     <button onclick="stop();">停止</button>
@@ -15,7 +17,7 @@
         var canvas = document.getElementById("canvas");
         var ctx = canvas.getContext("2d");
         var content = document.getElementById("content");
-        ctx.font = "50px sans-serif";
+        
         class TextCanvas{
             constructor(canvas, text=''){
                 this.canvas = canvas;
@@ -83,6 +85,7 @@
         let textCanvas = new TextCanvas(canvas, "");
         let recorder = new Recorder(textCanvas, '');
         function start(){
+            ctx.font =  document.getElementById("font-style").value;
             recorder.setScript(content.value);
             recorder.start();
         }
