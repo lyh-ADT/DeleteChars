@@ -14,10 +14,6 @@
     <br/>
     <canvas id="canvas"></canvas>
     <script>
-        var canvas = document.getElementById("canvas");
-        var ctx = canvas.getContext("2d");
-        var content = document.getElementById("content");
-        
         class TextCanvas{
             constructor(canvas, text=''){
                 this.canvas = canvas;
@@ -27,7 +23,7 @@
             }
 
             clear(){
-                ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+                this.ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
             }
 
             addChar(char){
@@ -82,10 +78,19 @@
                 this.s = script;
             }
         }
-        let textCanvas = new TextCanvas(canvas, "");
-        let recorder = new Recorder(textCanvas, '');
+
+        let recorder = null;
         function start(){
+            var canvas = document.getElementById("canvas");
+            var ctx = canvas.getContext("2d");
+            var content = document.getElementById("content");
             ctx.font =  document.getElementById("font-style").value;
+            
+            let textCanvas = new TextCanvas(canvas, "");
+            if(recorder){
+                recorder.stop();
+            }
+            recorder = new Recorder(textCanvas, '');
             recorder.setScript(content.value);
             recorder.start();
         }
