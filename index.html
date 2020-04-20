@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <textarea id="content">fuc^^ine : )</textarea>
+    <button onclick="start();">开始</button>
+    <button onclick="stop();">停止</button>
+    <br/>
+    <canvas id="canvas"></canvas>
+    <script>
+        var canvas = document.getElementById("canvas");
+        var ctx = canvas.getContext("2d");
+        var content = document.getElementById("content");
+        ctx.font = "50px sans-serif";
+        class TextCanvas{
+            constructor(canvas, text=''){
+                this.canvas = canvas;
+                this.text = text;
+                this.ctx = canvas.getContext("2d");
+                this.addChar(text);
+            }
+
+            clear(){
+                ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+            }
+
+            addChar(char){
+                this.text += char;
+                this.clear()
+                this.ctx.fillText(this.text, 0, 50);
+            }
+
+            deleteChar(){
+                this.text = this.text.substr(0, this.text.length-1);
+                this.clear()
+                this.ctx.fillText(this.text, 0, 50);
+            }
+        }
+
+        class Recorder{
+            constructor(charCanvas){
+                this.c = charCanvas;
+                this.s = '';
+                this.index = 0;
+                this.intervalId = 0;
+            }
+
+            start(){
+                let t = this;
+                this.intervalId = setInterval(function(){
+                    if(t.index >= t.s.length){
+                        t.stop();
+                        return;
+                    }
+                    t.oneFrame();
+                }, 250);
+            }
+
+            oneFrame(){
+                if(this.s[this.index] === '^'){
+                    this.index+=1;
+                    this.c.deleteChar();
+                    return;
+                }
+                this.c.addChar(this.s[this.index++]);
+            }
+
+            stop(){
+                clearInterval(this.intervalId);
+            }
+
+            /**
+            char '^' mean delete
+            */
+            setScript(script){
+                this.s = script;
+            }
+        }
+        let textCanvas = new TextCanvas(canvas, "");
+        let recorder = new Recorder(textCanvas, '');
+        function start(){
+            recorder.setScript(content.value);
+            recorder.start();
+        }
+
+        function stop(){
+            recorder.stop();
+        }
+    </script>
+</body>
+</html>
