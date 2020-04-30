@@ -26,15 +26,7 @@
         ]);
         let out = gif.render();
         console.log(out);
-
-        let hex_str = '';
-        for(let i of out){
-            hex_str += i.toString(16) + " ";
-        }
-        console.log(hex_str);
-        
-        let b = new Blob([out], {type:"image/gif"});
-        document.getElementById("image").src= URL.createObjectURL(b);
+        document.getElementById("image").src= URL.createObjectURL(out);
         console.log(gif);
     </script>
 </body>

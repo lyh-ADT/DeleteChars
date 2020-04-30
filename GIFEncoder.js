@@ -95,7 +95,6 @@ class LZWEncoder{
                 // increase the code size when the second code that bigger than current code size appeared
                 if(this.code_index-1 == (1 << code_bits) - 1){
                     code_bits++;
-                    console.log("+")
                 }
                 index_buffer = indices[k];
             }
@@ -260,26 +259,18 @@ class GIF{
             image_datas.push([graphic_control, image_descriptor, [2, image_data.length], image_data, [0]]);
         }
         console.log("image data finished");
-        let binary = new Uint8Array(byte_length+1);
-        let i = 0;
 
-        for(let b of this.header){
-            binary[i++] = b;
-        }
-        for(let b of this.gifDataStream){
-            binary[i++] = b;
-        }
-        for(let b of this.gct){
-            binary[i++] = b;
-        }
+        let out = [
+            this.header,
+            this.gifDataStream,
+            this.gct,
+        ];
         for(let frame of image_datas){
             for(let block of frame){
-                for(let b of block){
-                    binary[i++] = b;
-                }
+                out.push(new Uint8Array(block));
             }
         }
-        binary[byte_length] = 59;
-        return binary;
+        out.push(new Uint8Array([59]));
+        return new Blob(out, {type:"image/gif"});
     }
 }
