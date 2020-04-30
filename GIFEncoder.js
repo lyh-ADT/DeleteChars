@@ -1,4 +1,4 @@
-function set32Int2Array(array, begin, size, value){
+function set32Int2Array(array, begin, size, value, little_endian=true){
     let u32 = new Uint32Array(1);
     u32[0] = parseInt(value);
     let target = new array.constructor(u32.buffer);
@@ -12,9 +12,16 @@ function set32Int2Array(array, begin, size, value){
         console.warn(`${value} to ${array} with ${size} will lose`);
     }
     let k = 0;
-    for(let i=begin; i < begin+size; i++){
-        array[i] = target[k++];
+    if(little_endian){
+        for(let i=begin; i < begin+size; i++){
+            array[i] = target[k++];
+        }
+    }else{
+        for(let i=begin+size-1; i >= begin; i--){
+            array[i] = target[k++];
+        }
     }
+    
     return array;
 }
 
@@ -170,14 +177,35 @@ class GIF{
         }
     }
 
+    /**
+     * 
+     * @param {uint} loop_count how many times the animation should repeat, 0 mean loop forever 
+     */
+    setApplicationExtension(loop_count=0){
+        this.ape = new Uint8Array(19);
+        set32Int2Array(this.ape, 0, 1, 33); // GIF Extension Code
+        set32Int2Array(this.ape, 1, 1, 255); // Application Extension Label
+        set32Int2Array(this.ape, 2, 1, 11); // Length of Application Block
+        set32Int2Array(this.ape, 3, 4,  1313166419, false); // NETS
+        set32Int2Array(this.ape, 7, 4,  1128353861, false); // CAPE
+        set32Int2Array(this.ape, 11, 3,  3288624, false); // 2.0
+        set32Int2Array(this.ape, 14, 1,  3); // Sub-Block Length
+        set32Int2Array(this.ape, 15, 1,  1); // fixed 1
+        set32Int2Array(this.ape, 16, 2,  loop_count);
+        // terminator always 0
+    }
+
+    /**
+     * 
+     * @param {uint} delay_time  hundredths of a second 
+     */
     getGraphicControl(delay_time){
         let graphic_control = new Uint8Array(8);
         set32Int2Array(graphic_control, 0, 1, 33);
         set32Int2Array(graphic_control, 1, 1, 249);
         set32Int2Array(graphic_control, 2, 1, 4);
-        // Packed Field 0
+        set32Int2Array(graphic_control, 3, 1, 8); // Packed Field disposal method 2 restore to backgroud every image
         set32Int2Array(graphic_control, 4, 2, delay_time);
-        set32Int2Array(graphic_control, 0, 1, 33);
         // Packed Field 0 mean Transparent disabled, transparent color index useless
         // block terminator always 0
         return graphic_control;
@@ -207,12 +235,16 @@ class GIF{
     }
 
     render(){
-        let byte_length = 6;
         // get global color table
-        let colors = [[255,255,255]];
+        let colors = [
+            [255,255,255],
+            [0,0,0]
+        ];
         let color_map = {
-            "255,255,255":0
+            "255,255,255":0,
+            "0,0,0":1
         };
+        colors.push();
         for(let frame of this.frames){
             for(let row of frame){
                 for(let color of row){
@@ -223,8 +255,6 @@ class GIF{
                 }
             }
         }
-        color_map["0,0,0"] = colors.length;
-        colors.push([0,0,0]);
         // calculate the size of global color table
         let l =  colors.length;
         let gcts = -1;
@@ -234,17 +264,15 @@ class GIF{
         }
 
         this.setDataStream(true, 1, false, gcts, 0, 0);
-        byte_length += 7;
+
         this.setGolbalColorTable(colors);
-        byte_length += colors.length*3;
         console.log("color table finished");
+        this.setApplicationExtension(0);
 
         let image_datas = [];
         for(let frame of this.frames){
-            let graphic_control = this.getGraphicControl(0);
-            byte_length += 8;
+            let graphic_control = this.getGraphicControl(100);
             let image_descriptor = this.getImageDescriptor();
-            byte_length += 10;
             let image_data = null;
 
             let lzw = new LZWEncoder(2, colors.length);
@@ -255,7 +283,6 @@ class GIF{
                 }
             }
             image_data = lzw.encode(indices);
-            byte_length += image_data.length + 3;
             image_datas.push([graphic_control, image_descriptor, [2, image_data.length], image_data, [0]]);
         }
         console.log("image data finished");
@@ -264,6 +291,7 @@ class GIF{
             this.header,
             this.gifDataStream,
             this.gct,
+            this.ape
         ];
         for(let frame of image_datas){
             for(let block of frame){
