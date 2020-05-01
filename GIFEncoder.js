@@ -66,12 +66,11 @@ class LZWEncoder{
         }
         let table_size = (1 << min_code_size) - 1;
         this.clear_code = table_size + 1;
-        this.end_of_infomation_code = table_size + 2;
+        this.end_of_infomation_code = this.clear_code + 1;
         this.code_table = {};
-        this.code_index = -1;
+        this.code_index = this.end_of_infomation_code;
         for(let i=0; i < color_count; i++){
             this.code_table[i] = i;
-            this.code_index++;
         }
     }
 
@@ -95,14 +94,14 @@ class LZWEncoder{
                 this.code_table[cur] = ++this.code_index;
 
                 // console.log(this.code_table[index_buffer]);
-
+                
                 code_stream.add(this.code_table[index_buffer], code_bits);
 
-                // not quite sure here
-                // increase the code size when the second code that bigger than current code size appeared
-                if(this.code_index-1 == (1 << code_bits) - 1){
+                // increase the code size when index exceed the code size maximum
+                if(this.code_index == (1 << code_bits)){
                     code_bits++;
                 }
+                
                 index_buffer = indices[k];
             }
         }
@@ -229,24 +228,21 @@ class GIF{
      *      [[R,G,B], [R,G,B], ...],
      *      ...
      * ]
+     * @param {uint} delay_time how long this frame last (hundredths of a second)
      */
-    addFrame(frame){
-        this.frames.push(frame);
+    addFrame(frame, delay_time=0){
+        this.frames.push({
+            delay_time:delay_time,
+            data:frame
+        });
     }
 
-    render(){
+    render(quality=7, loop_count=0){
         // get global color table
-        let colors = [
-            [255,255,255],
-            [0,0,0]
-        ];
-        let color_map = {
-            "255,255,255":0,
-            "0,0,0":1
-        };
-        colors.push();
+        let colors = [];
+        let color_map = {};
         for(let frame of this.frames){
-            for(let row of frame){
+            for(let row of frame.data){
                 for(let color of row){
                     if(color_map[""+color] === undefined){
                         color_map[""+color] = colors.length;
@@ -256,34 +252,33 @@ class GIF{
             }
         }
         // calculate the size of global color table
-        let l =  colors.length;
-        let gcts = -1;
-        while(l >> 1 > 0){
-            l >>= 1;
-            gcts++;
+        let gcts = Math.ceil(Math.pow(colors.length, 0.5)) - 1;
+        // fill up the empty space in gct
+        while(colors.length < Math.pow(2, gcts+1)){
+            colors.push([0,0,0])
         }
 
-        this.setDataStream(true, 1, false, gcts, 0, 0);
+        this.setDataStream(true, quality, false, gcts, 0, 0);
 
         this.setGolbalColorTable(colors);
         console.log("color table finished");
-        this.setApplicationExtension(0);
+        this.setApplicationExtension(loop_count);
 
         let image_datas = [];
         for(let frame of this.frames){
-            let graphic_control = this.getGraphicControl(100);
+            let graphic_control = this.getGraphicControl(frame.delay_time);
             let image_descriptor = this.getImageDescriptor();
             let image_data = null;
 
-            let lzw = new LZWEncoder(2, colors.length);
+            let lzw = new LZWEncoder(gcts+1, colors.length);
             let indices = [];
-            for(let row of frame){
+            for(let row of frame.data){
                 for(let color of row){
                     indices.push(color_map[""+color]);
                 }
             }
             image_data = lzw.encode(indices);
-            image_datas.push([graphic_control, image_descriptor, [2, image_data.length], image_data, [0]]);
+            image_datas.push([graphic_control, image_descriptor, [gcts+1, image_data.length], image_data, [0]]);
         }
         console.log("image data finished");
 
