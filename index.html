@@ -13,6 +13,8 @@
     <button onclick="stop();">停止</button>
     <br/>
     <canvas id="canvas"></canvas>
+    <img id="image">
+    <script src="./GIFEncoder.js"></script>
     <script>
         class TextCanvas{
             constructor(canvas, text=''){
@@ -45,6 +47,7 @@
                 this.s = '';
                 this.index = 0;
                 this.intervalId = 0;
+                this.gif = new GIF(charCanvas.canvas.width, charCanvas.canvas.height);
             }
 
             start(){
@@ -65,10 +68,36 @@
                     return;
                 }
                 this.c.addChar(this.s[this.index++]);
+
+                let imageData = this.c.ctx.getImageData(0, 0, this.c.canvas.width, this.c.canvas.height);
+                this.gif.addFrame(this.parseImageData(imageData));
+
+            }
+
+            parseImageData(imageData){
+                let out = [];
+                let i = 0;
+                while(i < imageData.data.length){
+                    for(let x=0; x < imageData.height; ++x){
+                        let row = [];
+                        for(let y=0; y < imageData.height; ++y){
+                            let pixel = [imageData.data[i], imageData.data[i+1], imageData.data[i+2]];
+                            row.push(pixel);
+                            i += 4;
+                        }
+                        out.push(row);
+                    }
+                }
+                return out;
             }
 
             stop(){
                 clearInterval(this.intervalId);
+
+                let out = this.gif.render();
+                console.log(out);
+                document.getElementById("image").src= URL.createObjectURL(out);
+                console.log(this.gif);
             }
 
             /**

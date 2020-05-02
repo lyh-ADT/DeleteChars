@@ -26,18 +26,27 @@ function set32Int2Array(array, begin, size, value, little_endian=true){
 }
 
 /**
- * flexible code sizes array
+ * flexible code sizes array with data-sub block feature
  */
 class FlexSizeByteArray{
     constructor(){
-        this.bytes_array = [];
+        this.bytes_array = [0];
         this.left_size = 0;
+        this.sub_block_size = 0;
+        this.sub_block_size_position = 0;
     }
 
     add(value, size){
         if(this.left_size == 0){
             this.bytes_array.push(0);
             this.left_size = 8;
+            this.sub_block_size += 1;
+            if(this.sub_block_size == 256){
+                this.bytes_array[this.sub_block_size_position] = 255;
+                this.bytes_array.push(0);
+                this.sub_block_size_position = this.bytes_array.length - 2;
+                this.sub_block_size = 1;
+            }
             return this.add(value, size);
         }
         if(this.left_size >= size){
@@ -53,23 +62,34 @@ class FlexSizeByteArray{
         }
     }
 
-    toArray(){
-        return new Uint8Array(this.bytes_array);
+    toArray(prefix=[], suffix=[]){
+        this.bytes_array[this.sub_block_size_position] = this.sub_block_size;
+        this.bytes_array.push(0);
+        return new Uint8Array(prefix.concat(this.bytes_array).concat(suffix));
     }
 }
 
 class LZWEncoder{
     constructor(min_code_size, color_count){
         this.min_code_size = min_code_size;
-        if(min_code_size < 2 || min_code_size > 8){
-            throw new Error(`Illegal min_code_size: ${min_code_size}, must be bigger than 1, less than 9`);
+        if(min_code_size > 8){
+            throw new Error(`Illegal min_code_size: ${min_code_size}, must be less than 9`);
         }
+        if(min_code_size < 2){
+            console.warn("min_code_size less than 2, auto assign to 2");
+            this.min_code_size = 2;
+        }
+        this.color_count = color_count;
         let table_size = (1 << min_code_size) - 1;
         this.clear_code = table_size + 1;
         this.end_of_infomation_code = this.clear_code + 1;
+        this.initialCodeTable();
+    }
+
+    initialCodeTable(){
         this.code_table = {};
         this.code_index = this.end_of_infomation_code;
-        for(let i=0; i < color_count; i++){
+        for(let i=0; i < this.color_count; i++){
             this.code_table[i] = i;
         }
     }
@@ -97,21 +117,33 @@ class LZWEncoder{
                 
                 code_stream.add(this.code_table[index_buffer], code_bits);
 
+                index_buffer = indices[k];
+
                 // increase the code size when index exceed the code size maximum
                 if(this.code_index == (1 << code_bits)){
                     code_bits++;
+                    if(code_bits > 12){
+                        code_bits = this.min_code_size + 1;
+                        code_stream.add(this.clear_code, code_bits);
+                        this.initialCodeTable();
+                    }
                 }
-                
-                index_buffer = indices[k];
             }
         }
         code_stream.add(this.end_of_infomation_code, code_bits);
-        return code_stream.toArray();
+        return code_stream.toArray([this.min_code_size]);
     }
 };
 
 class GIF{
-    constructor(screen_width, screen_height){
+    /**
+     * 
+     * @param {uint} screen_width 
+     * @param {uint} screen_height 
+     * @param {Array} background_color RGB color for background
+     */
+    constructor(screen_width, screen_height, background_color=[0,0,0]){
+        this.background_color = background_color;
         this.header = new Uint8Array(6);
         this.header[0] = 'G'.charCodeAt(0);
         this.header[1] = 'I'.charCodeAt(0);
@@ -251,14 +283,24 @@ class GIF{
                 }
             }
         }
+
+        // put background color in map if not exist
+        if(color_map[""+this.background_color] === undefined){
+            color_map[""+this.background_color] = colors.length;
+            colors.push(this.background_color);
+        }
+
         // calculate the size of global color table
         let gcts = Math.ceil(Math.pow(colors.length, 0.5)) - 1;
+        if(gcts < 1){
+            gcts = 1;
+        }
         // fill up the empty space in gct
         while(colors.length < Math.pow(2, gcts+1)){
             colors.push([0,0,0])
         }
 
-        this.setDataStream(true, quality, false, gcts, 0, 0);
+        this.setDataStream(true, quality, false, gcts, color_map[""+this.background_color], 0);
 
         this.setGolbalColorTable(colors);
         console.log("color table finished");
@@ -278,7 +320,7 @@ class GIF{
                 }
             }
             image_data = lzw.encode(indices);
-            image_datas.push([graphic_control, image_descriptor, [gcts+1, image_data.length], image_data, [0]]);
+            image_datas.push([graphic_control, image_descriptor, image_data]);
         }
         console.log("image data finished");
 
