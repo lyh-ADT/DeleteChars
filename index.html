@@ -3,14 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>DeleteChars</title>
 </head>
 <body>
     font-style:<input id="font-style" type="text" value="50px sans-serif">
+    duration:<input id="duration" type="range" value="0.5" min="0" max="1000" onchange="document.getElementById('duration-value').innerText = this.value * 0.01;">
+    <span id="duration-value">0.5</span> s
     <br/>
     <textarea id="content">fuc^^ine : )</textarea>
-    <button onclick="start();">开始</button>
-    <button onclick="stop();">停止</button>
+    <button onclick="start();">start</button>
+    <button onclick="stop();">stop</button>
     <br/>
     <canvas id="canvas"></canvas>
     <img id="image">
@@ -57,21 +59,43 @@
                         t.stop();
                         return;
                     }
-                    t.oneFrame();
+                    let duration = document.getElementById("duration").value;
+                    duration = parseInt(duration);
+                    t.oneFrame(duration);
                 }, 250);
             }
 
-            oneFrame(){
+            /**
+             * @param {uint} duration how long this frame last (hundredths of a second)
+             */
+            oneFrame(duration=0){
                 if(this.s[this.index] === '^'){
                     this.index+=1;
                     this.c.deleteChar();
-                    return;
+                }else{
+                    this.c.addChar(this.s[this.index++]);
                 }
-                this.c.addChar(this.s[this.index++]);
 
                 let imageData = this.c.ctx.getImageData(0, 0, this.c.canvas.width, this.c.canvas.height);
-                this.gif.addFrame(this.parseImageData(imageData));
+                this.gif.addFrame(this.parseImageData(imageData), duration);
+            }
 
+            RGBA2RBG(rgba, background){
+                const MAX = 255;
+                function f(a, c, b){
+                    a /= MAX;
+                    c /= MAX;
+                    b /= MAX;
+                    let out = ((1-a) * b) + (a * c);
+                    out *= MAX;
+                    return Math.round(out);
+                }
+
+                return [
+                    f(rgba[3], rgba[0], background[0]), 
+                    f(rgba[3], rgba[1], background[1]), 
+                    f(rgba[3], rgba[2], background[2])
+                ];
             }
 
             parseImageData(imageData){
@@ -80,8 +104,8 @@
                 while(i < imageData.data.length){
                     for(let x=0; x < imageData.height; ++x){
                         let row = [];
-                        for(let y=0; y < imageData.height; ++y){
-                            let pixel = [imageData.data[i], imageData.data[i+1], imageData.data[i+2]];
+                        for(let y=0; y < imageData.width; ++y){
+                            let pixel = this.RGBA2RBG([imageData.data[i], imageData.data[i+1], imageData.data[i+2], imageData.data[i+3]], [255,255,255]);
                             row.push(pixel);
                             i += 4;
                         }
