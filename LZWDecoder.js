@@ -39,9 +39,8 @@ class FlexSizeByteArrayReader{
 }
 
 class LZWDecoder{
-    constructor(min_code_size, array, color_count, color_table=null){
+    constructor(min_code_size, color_count, color_table=null){
         this.min_code_size = min_code_size;
-        this.array = array;
         this.color_count = color_count;
         this.color_table = color_table;
         this.code_table = {};
@@ -61,20 +60,21 @@ class LZWDecoder{
     }
 
     decode(code_stream){
-        let c = code_stream[0];
+        let c = code_stream[1];
         let index_stream = [this.code_table[c]];
         let k = 0;
-        let old = c;
-        for(let i=1; i < code_stream.length; ++i){
+        for(let i=2; i < code_stream.length; ++i){
             c = code_stream[i];
             if(this.code_table[c] === undefined){
-                k = this.code_table[old][0];
-                let out = this.code_table[old]+k;
-                index_stream.push(out);
-                this.code_table[this.code_index++] = out;
+                k = (''+this.code_table[code_stream[i-1]])[0];
+                let out = [this.code_table[code_stream[i-1]],k].join(',');
+
+                index_stream = index_stream.concat(out.split(',').map(i => parseInt(i)));
+                this.code_table[++this.code_index] = out;
             } else {
-                index_stream.push(this.code_table[c]);
-                this.code_table[this.code_index++] = this.code_table[old]+this.code_table[c];
+                index_stream = index_stream.concat((''+this.code_table[c]).split(',').map(i => parseInt(i)));
+                k = (''+this.code_table[c])[0];
+                this.code_table[++this.code_index] = [this.code_table[code_stream[i-1]],k].join(',');
             }
         }
         return index_stream;
