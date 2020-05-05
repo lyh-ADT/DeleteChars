@@ -34,6 +34,7 @@ class FlexSizeByteArray{
         this.left_size = 0;
         this.sub_block_size = 0;
         this.sub_block_size_position = 0;
+        this.mask = (1 << 8) - 1; // 0xff
     }
 
     add(value, size){
@@ -51,6 +52,7 @@ class FlexSizeByteArray{
         }
         if(this.left_size >= size){
             value = value << (8 - this.left_size);
+            value &= this.mask;
             this.bytes_array[this.bytes_array.length-1] |= value;
             this.left_size -= size;
             return;
@@ -102,14 +104,10 @@ class LZWEncoder{
 
         let index_buffer=indices[0];
         for(let k=1; k <= indices.length; k++){
-            let cur = "" + index_buffer + indices[k];
+            let cur = [index_buffer, indices[k]].join(',');
             if(this.code_table[cur]){
                 index_buffer = cur;
             }else{
-                // skip clear code and end of infomation code
-                if(this.code_index + 1 == this.clear_code){
-                    this.code_index += 2;
-                }
                 // put new code into table
                 this.code_table[cur] = ++this.code_index;
 
