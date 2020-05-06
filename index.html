@@ -7,8 +7,8 @@
 </head>
 <body>
     font-style:<input id="font-style" type="text" value="50px sans-serif">
-    duration:<input id="duration" type="range" value="0.5" min="0" max="1000" onchange="document.getElementById('duration-value').innerText = this.value * 0.01;">
-    <span id="duration-value">0.5</span> s
+    <br/>
+    duration:<input id="duration" type="number" value="25"> * 0.01s
     <br/>
     <textarea id="content">fuc^^ine : )</textarea>
     <button onclick="start();">start</button>
@@ -77,42 +77,7 @@
                 }
 
                 let imageData = this.c.ctx.getImageData(0, 0, this.c.canvas.width, this.c.canvas.height);
-                this.gif.addFrame(this.parseImageData(imageData), duration);
-            }
-
-            RGBA2RBG(rgba, background){
-                const MAX = 255;
-                function f(a, c, b){
-                    a /= MAX;
-                    c /= MAX;
-                    b /= MAX;
-                    let out = ((1-a) * b) + (a * c);
-                    out *= MAX;
-                    return Math.round(out);
-                }
-
-                return [
-                    f(rgba[3], rgba[0], background[0]), 
-                    f(rgba[3], rgba[1], background[1]), 
-                    f(rgba[3], rgba[2], background[2])
-                ];
-            }
-
-            parseImageData(imageData){
-                let out = [];
-                let i = 0;
-                while(i < imageData.data.length){
-                    for(let x=0; x < imageData.height; ++x){
-                        let row = [];
-                        for(let y=0; y < imageData.width; ++y){
-                            let pixel = this.RGBA2RBG([imageData.data[i], imageData.data[i+1], imageData.data[i+2], imageData.data[i+3]], [255,255,255]);
-                            row.push(pixel);
-                            i += 4;
-                        }
-                        out.push(row);
-                    }
-                }
-                return out;
+                this.gif.addFrame(imageData, duration);
             }
 
             stop(){
