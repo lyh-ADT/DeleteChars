@@ -3,19 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>DeleteChars</title>
 </head>
 <body>
+    font-style:<input id="font-style" type="text" value="50px sans-serif">
+    <br/>
+    duration:<input id="duration" type="number" value="25"> * 0.01s
+    <br/>
     <textarea id="content">fuc^^ine : )</textarea>
-    <button onclick="start();">开始</button>
-    <button onclick="stop();">停止</button>
+    <button onclick="start();">start</button>
+    <button onclick="stop();">stop</button>
     <br/>
     <canvas id="canvas"></canvas>
+    <img id="image">
+    <script src="./GIFEncoder.js"></script>
     <script>
-        var canvas = document.getElementById("canvas");
-        var ctx = canvas.getContext("2d");
-        var content = document.getElementById("content");
-        ctx.font = "50px sans-serif";
         class TextCanvas{
             constructor(canvas, text=''){
                 this.canvas = canvas;
@@ -25,7 +27,7 @@
             }
 
             clear(){
-                ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+                this.ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
             }
 
             addChar(char){
@@ -47,6 +49,7 @@
                 this.s = '';
                 this.index = 0;
                 this.intervalId = 0;
+                this.gif = new GIF(charCanvas.canvas.width, charCanvas.canvas.height);
             }
 
             start(){
@@ -56,21 +59,34 @@
                         t.stop();
                         return;
                     }
-                    t.oneFrame();
+                    let duration = document.getElementById("duration").value;
+                    duration = parseInt(duration);
+                    t.oneFrame(duration);
                 }, 250);
             }
 
-            oneFrame(){
+            /**
+             * @param {uint} duration how long this frame last (hundredths of a second)
+             */
+            oneFrame(duration=0){
                 if(this.s[this.index] === '^'){
                     this.index+=1;
                     this.c.deleteChar();
-                    return;
+                }else{
+                    this.c.addChar(this.s[this.index++]);
                 }
-                this.c.addChar(this.s[this.index++]);
+
+                let imageData = this.c.ctx.getImageData(0, 0, this.c.canvas.width, this.c.canvas.height);
+                this.gif.addFrame(imageData, duration);
             }
 
             stop(){
                 clearInterval(this.intervalId);
+
+                let out = this.gif.render();
+                console.log(out);
+                document.getElementById("image").src= URL.createObjectURL(out);
+                console.log(this.gif);
             }
 
             /**
@@ -80,9 +96,19 @@
                 this.s = script;
             }
         }
-        let textCanvas = new TextCanvas(canvas, "");
-        let recorder = new Recorder(textCanvas, '');
+
+        let recorder = null;
         function start(){
+            var canvas = document.getElementById("canvas");
+            var ctx = canvas.getContext("2d");
+            var content = document.getElementById("content");
+            ctx.font =  document.getElementById("font-style").value;
+            
+            let textCanvas = new TextCanvas(canvas, "");
+            if(recorder){
+                recorder.stop();
+            }
+            recorder = new Recorder(textCanvas, '');
             recorder.setScript(content.value);
             recorder.start();
         }
