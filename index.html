@@ -32,14 +32,22 @@
 
             addChar(char){
                 this.text += char;
-                this.clear()
-                this.ctx.fillText(this.text, 0, 50);
+                this.drawText();
             }
 
             deleteChar(){
                 this.text = this.text.substr(0, this.text.length-1);
-                this.clear()
-                this.ctx.fillText(this.text, 0, 50);
+            }
+
+            drawText() {
+                this.clear();
+                const lines = this.text.split("\n");
+                let y = 50;
+                const rowHeight = this.ctx.measureText(lines[0]).fontBoundingBoxAscent;
+                for (const line of lines) {
+                    this.ctx.fillText(line, 0, y);
+                    y += rowHeight;
+                }
             }
         }
 
