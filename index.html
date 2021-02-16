@@ -42,8 +42,8 @@
             drawText() {
                 this.clear();
                 const lines = this.text.split("\n");
-                let y = 50;
-                const rowHeight = this.ctx.measureText(lines[0]).fontBoundingBoxAscent;
+                let y = 5;
+                const rowHeight = this.ctx.measureText(lines[0]).fontBoundingBoxDescent;
                 for (const line of lines) {
                     this.ctx.fillText(line, 0, y);
                     y += rowHeight;
@@ -57,20 +57,20 @@
                 this.s = '';
                 this.index = 0;
                 this.intervalId = 0;
-                this.gif = new GIF(charCanvas.canvas.width, charCanvas.canvas.height);
+                this.gif = new GIF(charCanvas.canvas.offsetWidth, charCanvas.canvas.offsetHeight);
             }
 
             start(){
                 let t = this;
+                let duration = document.getElementById("duration").value;
+                duration = parseInt(duration);
                 this.intervalId = setInterval(function(){
                     if(t.index >= t.s.length){
                         t.stop();
                         return;
                     }
-                    let duration = document.getElementById("duration").value;
-                    duration = parseInt(duration);
                     t.oneFrame(duration);
-                }, 250);
+                }, duration*10);
             }
 
             /**
@@ -84,7 +84,7 @@
                     this.c.addChar(this.s[this.index++]);
                 }
 
-                let imageData = this.c.ctx.getImageData(0, 0, this.c.canvas.width, this.c.canvas.height);
+                let imageData = this.c.ctx.getImageData(0, 0, this.c.canvas.offsetWidth, this.c.canvas.offsetHeight);
                 this.gif.addFrame(imageData, duration);
             }
 
@@ -110,8 +110,32 @@
             var canvas = document.getElementById("canvas");
             var ctx = canvas.getContext("2d");
             var content = document.getElementById("content");
+            ctx.textBaseline = "top";
             ctx.font =  document.getElementById("font-style").value;
             
+            // resize canvas to fit content
+            const lines = content.value.split("\n");
+            const rowHeight = ctx.measureText("a").fontBoundingBoxDescent;
+            canvas.height = Math.ceil(lines.length * rowHeight);
+            
+            // textBaseline and font will be reset to default after set canvas.height(don't know why), so set it back to the setting
+            ctx.textBaseline = "top";
+            ctx.font =  document.getElementById("font-style").value;
+            // find the longest line
+            let longestWidth = 0;
+            for (const line of lines) {
+                const width = ctx.measureText(line).width;
+                if (width > longestWidth) {
+                    longestWidth = width;
+                }
+            }
+            canvas.width = Math.ceil(longestWidth);
+
+            // same as above. set it back to the setting
+            ctx.textBaseline = "top";
+            ctx.font =  document.getElementById("font-style").value;
+
+
             let textCanvas = new TextCanvas(canvas, "");
             if(recorder){
                 recorder.stop();
